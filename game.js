@@ -1,113 +1,135 @@
 const readline = require("node:readline/promises");
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+class Character {
+  #health;
 
-// Завдання 1: Створення персонажа (змінні та типи даних)
-let playerName = "";
-let playerHealth = 100;
-let playerAttack = 25;
-let playerGold = 0;
-let isAlive = true;
+  constructor(name, health, attackPower) {
+    this.name = name;
+    this.#health = health;
+    this.attackPower = attackPower;
+  }
 
-// Завдання 2: Функція інформації про персонажа
-function showPlayerInfo() {
-  console.log("\n--- СТАТУС ПЕРСОНАЖА ---");
-  console.log(`Ім'я: ${playerName}`);
-  console.log(`Здоров'я: ${playerHealth}`);
-  console.log(`Сила атаки: ${playerAttack}`);
-  console.log(`Золото: ${playerGold}`);
-  console.log("-------------------------\n");
+  getHealth() {
+    return this.#health;
+  }
+
+  isAlive() {
+    return this.#health > 0;
+  }
+
+  takeDamage(amount) {
+    const safeDamage = Math.max(0, amount);
+    this.#health = Math.max(0, this.#health - safeDamage);
+    return safeDamage;
+  }
+
+  showInfo() {
+    console.log("\n--- СТАТУС ПЕРСОНАЖА ---");
+    console.log(`Ім'я: ${this.name}`);
+    console.log(`Здоров'я: ${this.#health}`);
+    console.log(`Сила атаки: ${this.attackPower}`);
+    console.log("-------------------------\n");
+  }
+
+  attack(target) {
+    console.log(`${this.name} атакує ${target.name} і завдає ${this.attackPower} шкоди.`);
+    target.takeDamage(this.attackPower);
+  }
 }
 
-// Завдання 5: Бій із монстром (функція, цикл while, розгалуження)
-async function fightMonster() {
-  console.log("\n⚠️ Увага! Починається бій із монстром!");
-  let monsterHealth = 60;
-  const monsterDamage = 10;
+class Player extends Character {
+  constructor(name, health = 100, attackPower = 25, gold = 0) {
+    super(name, health, attackPower);
+    this.gold = gold;
+  }
 
-  // Цикл while триває, доки живі і гравець, і монстр
-  while (monsterHealth > 0 && playerHealth > 0) {
-    // 1. Гравець атакує монстра
-    monsterHealth -= playerAttack;
-    console.log(`Ви вдарили монстра і завдали ${playerAttack} шкоди.`);
-
-    // 2. Перевіряємо, чи живий монстр
-    if (monsterHealth > 0) {
-      // 3. Монстр атакує у відповідь
-      playerHealth -= monsterDamage;
-      console.log(`Монстр контратакує і завдає вам ${monsterDamage} шкоди.`);
-    } else {
-      console.log("🎉 Ви перемогли монстра!");
-      playerGold += 30;
+  addGold(amount) {
+    if (amount > 0) {
+      this.gold += amount;
     }
+  }
 
-    // Виведення поточного стану після кожного раунду
-    console.log(
-      `[Здоров'я гравця: ${playerHealth}] | [Здоров'я монстра: ${Math.max(0, monsterHealth)}]\n`,
-    );
+  showInfo() {
+    console.log("\n--- СТАТУС ПЕРСОНАЖА ---");
+    console.log(`Ім'я: ${this.name}`);
+    console.log(`Здоров'я: ${this.getHealth()}`);
+    console.log(`Сила атаки: ${this.attackPower}`);
+    console.log(`Золото: ${this.gold}`);
+    console.log("-------------------------\n");
+  }
+
+  // Поліморфізм: перевизначення методу attack
+  attack(target) {
+    console.log(`Ви вдарили ${target.name} і завдали ${this.attackPower} шкоди.`);
+    target.takeDamage(this.attackPower);
   }
 }
 
-// Завдання 6: Перевірка результату гри
-function checkGameResult(hasCompletedRooms) {
-  console.log("\n======================");
-  console.log("   РЕЗУЛЬТАТИ ГРИ     ");
-  console.log("======================");
-
-  if (playerHealth > 0 && hasCompletedRooms) {
-    console.log(
-      `🏆 Вітаємо, ${playerName}! Ви успішно пройшли всі кімнати та перемогли!`,
-    );
-  } else {
-    console.log(
-      `💀 На жаль, ${playerName}, ваш герой загинув у підземеллі...`,
-    );
+class Monster extends Character {
+  constructor(name, health = 60, attackPower = 10, goldReward = 30) {
+    super(name, health, attackPower);
+    this.goldReward = goldReward;
   }
 
-  console.log(`💰 Всього зібрано золота: ${playerGold}`);
-  console.log("======================");
+  // Поліморфізм: перевизначення методу attack
+  attack(target) {
+    console.log(`Монстр (${this.name}) контратакує і завдає вам ${this.attackPower} шкоди.`);
+    target.takeDamage(this.attackPower);
+  }
 }
 
-async function main() {
-  // Введення імені через консоль
-  playerName = await rl.question("Введіть ім'я героя: ");
+class Game {
+  constructor() {
+    this.rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    this.rooms = ["Темний коридор", "Кімната монстра", "Скарбниця"];
+    this.player = null;
+    this.hasCompletedAllRooms = true;
+  }
 
-  console.log(`\nВітаємо, ${playerName}!`);
-  console.log("Ваша пригода починається!\n");
+  async fightMonster(monster) {
+    console.log("\n⚠️ Увага! Починається бій із монстром!");
 
-  showPlayerInfo();
+    while (monster.isAlive() && this.player.isAlive()) {
+      // 1. Гравець атакує монстра
+      this.player.attack(monster);
 
-  // Завдання 3: Масив із трьох кімнат
-  const rooms = ["Темний коридор", "Кімната монстра", "Скарбниця"];
-  let hasCompletedAllRooms = true;
+      // 2. Перевіряємо, чи живий монстр
+      if (monster.isAlive()) {
+        // 3. Монстр атакує у відповідь
+        monster.attack(this.player);
+      } else {
+        console.log("🎉 Ви перемогли монстра!");
+        this.player.addGold(monster.goldReward);
+      }
 
-  // Проходження кімнат за допомогою циклу for
-  for (let i = 0; i < rooms.length; i++) {
-    const roomNumber = i + 1;
-    const roomName = rooms[i];
+      // Виведення поточного стану після кожного раунду
+      console.log(
+        `[Здоров'я гравця: ${this.player.getHealth()}] | [Здоров'я монстра: ${monster.getHealth()}]\n`
+      );
+    }
+  }
 
-    console.log(`\n🚪 Ви підходите до кімнати ${roomNumber}: "${roomName}"`);
-    await rl.question("Натисніть Enter, щоб увійти...");
-
-    // Завдання 4: Події в кімнатах залежно від номера (switch або if-else)
+  async handleRoomEvent(roomNumber) {
     switch (roomNumber) {
       case 1:
         console.log("💥 Подія: Гравець знаходить приховану пастку!");
-        playerHealth -= 15;
+        this.player.takeDamage(15);
         console.log("Ви втратили 15 одиниць здоров'я.");
         break;
 
-      case 2:
+      case 2: {
         console.log("⚔️ Подія: Зустріч із лютим монстром!");
-        await fightMonster();
+        const monster = new Monster("Монстр", 60, 10, 30);
+        await this.fightMonster(monster);
         break;
+      }
 
       case 3:
         console.log("💎 Подія: Ви знайшли стародавню скарбницю!");
-        playerGold += 100;
+        this.player.addGold(100);
         console.log("Ви отримали 100 золота!");
         break;
 
@@ -115,19 +137,59 @@ async function main() {
         console.log("Нічого особливого у цій кімнаті немає.");
         break;
     }
-
-    showPlayerInfo();
-
-    // Логічний оператор: перевірка чи живий гравець після події
-    if (playerHealth <= 0) {
-      isAlive = false;
-      hasCompletedAllRooms = false;
-      break;
-    }
   }
 
-  // Фінальна перевірка результатів гри
-  checkGameResult(hasCompletedAllRooms);
+  checkGameResult() {
+    console.log("\n======================");
+    console.log("   РЕЗУЛЬТАТИ ГРИ     ");
+    console.log("======================");
+
+    if (this.player.isAlive() && this.hasCompletedAllRooms) {
+      console.log(
+        `🏆 Вітаємо, ${this.player.name}! Ви успішно пройшли всі кімнати та перемогли!`
+      );
+    } else {
+      console.log(
+        `💀 На жаль, ${this.player.name}, ваш герой загинув у підземеллі...`
+      );
+    }
+
+    console.log(`💰 Всього зібрано золота: ${this.player.gold}`);
+    console.log("======================");
+  }
+
+  async start() {
+    try {
+      const playerName = await this.rl.question("Введіть ім'я героя: ");
+      this.player = new Player(playerName, 100, 25, 0);
+
+      console.log(`\nВітаємо, ${this.player.name}!`);
+      console.log("Ваша пригода починається!\n");
+
+      this.player.showInfo();
+
+      for (let i = 0; i < this.rooms.length; i++) {
+        const roomNumber = i + 1;
+        const roomName = this.rooms[i];
+
+        console.log(`\n🚪 Ви підходите до кімнати ${roomNumber}: "${roomName}"`);
+        await this.rl.question("Натисніть Enter, щоб увійти...");
+
+        await this.handleRoomEvent(roomNumber);
+        this.player.showInfo();
+
+        if (!this.player.isAlive()) {
+          this.hasCompletedAllRooms = false;
+          break;
+        }
+      }
+
+      this.checkGameResult();
+    } finally {
+      this.rl.close();
+    }
+  }
 }
 
-main().finally(() => rl.close());
+const game = new Game();
+game.start();
